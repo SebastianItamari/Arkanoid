@@ -16,14 +16,6 @@ class GamePainter extends CustomPainter {
 
     canvas.drawCircle(
       Offset(ball.x, ball.y),
-      ball.radius * 2,
-      Paint()
-        ..color = const Color(0xFF5B8CFF).withOpacity(0.25)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
-    );
-
-    canvas.drawCircle(
-      Offset(ball.x, ball.y),
       ball.radius,
       Paint()..color = Colors.white,
     );
@@ -39,13 +31,6 @@ class GamePainter extends CustomPainter {
       paddle.y,
       paddle.width,
       paddle.height,
-    );
-
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(paddleRect.inflate(2), const Radius.circular(20)),
-      Paint()
-        ..color = Colors.white.withOpacity(0.15)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
     );
 
     canvas.drawRRect(

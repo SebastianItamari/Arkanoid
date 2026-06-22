@@ -26,7 +26,7 @@ class StartScreen extends StatelessWidget {
                     end: Alignment.bottomCenter,
                     colors: [Color(0xFF131B33), Color(0xFF0B1020)],
                   ),
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(12),
                   boxShadow: const [
                     BoxShadow(
                       color: Color(0x225B8CFF),

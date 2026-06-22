@@ -4,5 +4,11 @@ class Ball {
   double radius;
   double vx;
   double vy;
-  Ball(this.x, this.y, this.radius, this.vx, this.vy);
+  Ball({
+    required this.x,
+    required this.y,
+    required this.radius,
+    required this.vx,
+    required this.vy,
+  });
 }

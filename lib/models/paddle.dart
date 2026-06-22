@@ -3,5 +3,10 @@ class Paddle {
   double y;
   double width;
   double height;
-  Paddle(this.x, this.y, this.width, this.height);
+  Paddle({
+    required this.x,
+    required this.y,
+    required this.width,
+    required this.height,
+  });
 }

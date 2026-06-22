@@ -5,12 +5,12 @@ class Brick {
   double height;
   int life;
   bool indestructible;
-  Brick(
-    this.x,
-    this.y,
-    this.width,
-    this.height,
-    this.life,
-    this.indestructible,
-  );
+  Brick({
+    required this.x,
+    required this.y,
+    required this.width,
+    required this.height,
+    required this.life,
+    required this.indestructible,
+  });
 }

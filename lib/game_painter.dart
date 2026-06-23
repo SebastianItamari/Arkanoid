@@ -8,10 +8,7 @@ class GamePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // =========================
     // Ball
-    // =========================
-
     final ball = gameState.ball;
 
     canvas.drawCircle(
@@ -20,10 +17,7 @@ class GamePainter extends CustomPainter {
       Paint()..color = Colors.white,
     );
 
-    // =========================
     // Paddle
-    // =========================
-
     final paddle = gameState.paddle;
 
     final paddleRect = Rect.fromLTWH(
@@ -38,10 +32,7 @@ class GamePainter extends CustomPainter {
       Paint()..color = Colors.white,
     );
 
-    // =========================
     // Bricks
-    // =========================
-
     for (final brick in gameState.bricks) {
       final rect = Rect.fromLTWH(brick.x, brick.y, brick.width, brick.height);
 
@@ -74,19 +65,11 @@ class GamePainter extends CustomPainter {
       }
 
       canvas.drawRRect(brickRRect, paint);
-
-      canvas.drawRRect(
-        brickRRect,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1
-          ..color = Colors.white.withOpacity(0.08),
-      );
     }
   }
 
   @override
   bool shouldRepaint(covariant GamePainter oldDelegate) {
-    return oldDelegate.gameState != gameState;
+    return true;
   }
 }

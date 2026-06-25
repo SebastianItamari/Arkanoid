@@ -7,7 +7,15 @@ class GameState {
   Ball ball;
   Paddle paddle;
   List<Brick> bricks;
-  GameState({required this.ball, required this.paddle, required this.bricks});
+  int score;
+  int lives;
+  GameState({
+    required this.ball,
+    required this.paddle,
+    required this.bricks,
+    this.score = 0,
+    this.lives = 3,
+  });
 }
 
 List<Brick> generateLevel({

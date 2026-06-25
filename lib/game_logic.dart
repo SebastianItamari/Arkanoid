@@ -37,6 +37,7 @@ Offset checkBrickCollisions({
   required double nextX,
   required double nextY,
   required bool positionsInitialized,
+  void Function(int points)? onBrickDestroyed,
 }) {
   if (!positionsInitialized) return Offset(nextX, nextY);
 
@@ -78,6 +79,7 @@ Offset checkBrickCollisions({
         brick.life -= 1;
         if (brick.life <= 0) {
           bricks.remove(brick);
+          onBrickDestroyed?.call(10);
         }
       }
 

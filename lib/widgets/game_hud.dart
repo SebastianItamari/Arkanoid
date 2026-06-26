@@ -5,6 +5,7 @@ class GameHud extends StatelessWidget {
   final int score;
   final int lives;
   final int level;
+  final int highScore;
   final VoidCallback onRestart;
 
   const GameHud({
@@ -12,6 +13,7 @@ class GameHud extends StatelessWidget {
     required this.score,
     required this.lives,
     required this.level,
+    required this.highScore,
     required this.onRestart,
   });
 
@@ -45,6 +47,12 @@ class GameHud extends StatelessWidget {
             iconColor: const Color(0xFF5B8CFF),
             label: 'Level',
             value: level.toString(),
+          ),
+          GameHudItem(
+            icon: Icons.emoji_events_rounded,
+            iconColor: const Color(0xFFFFD700),
+            label: 'Best',
+            value: highScore.toString(),
           ),
           FilledButton.icon(
             onPressed: onRestart,

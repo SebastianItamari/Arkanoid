@@ -6,6 +6,7 @@ class GameEndDialog {
     required bool won,
     required int score,
     int? level,
+    int? highScore,
     required VoidCallback onRestart,
     VoidCallback? onGoToStart,
   }) {
@@ -74,6 +75,34 @@ class GameEndDialog {
                   fontWeight: FontWeight.w900,
                 ),
               ),
+              if (highScore != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: score >= highScore
+                        ? const Color(0xFFFFD700).withValues(alpha: 0.15)
+                        : Colors.white.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: score >= highScore
+                          ? const Color(0xFFFFD700).withValues(alpha: 0.4)
+                          : Colors.white.withValues(alpha: 0.12),
+                    ),
+                  ),
+                  child: Text(
+                    score >= highScore ? 'NEW BEST!' : 'BEST $highScore',
+                    style: TextStyle(
+                      color: score >= highScore
+                          ? const Color(0xFFFFD700)
+                          : Colors.white54,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,

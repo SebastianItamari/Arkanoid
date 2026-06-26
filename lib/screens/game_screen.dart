@@ -10,6 +10,7 @@ import '../models/level_data.dart';
 import '../constants/levels.dart';
 import '../custom_painters/game_painter.dart';
 import '../utils/game_logic.dart';
+import '../utils/high_score_service.dart';
 import '../widgets/game_hud.dart';
 import '../widgets/game_end_dialog.dart';
 import '../widgets/level_complete_dialog.dart';
@@ -38,10 +39,14 @@ class _GameScreenState extends State<GameScreen> {
   List<FloatingScore> _floatingScores = [];
   bool _paused = false;
   int _currentLevel = 1;
+  int _highScore = 0;
 
   @override
   void initState() {
     super.initState();
+    HighScoreService.load().then((hs) {
+      if (mounted) setState(() => _highScore = hs);
+    });
     _ball = Ball(x: 100, y: 100, radius: 8, vx: 0, vy: 0);
     _paddle = Paddle(x: 0, y: 0, width: 100, height: 12);
     _bricks = <Brick>[];
@@ -115,6 +120,9 @@ class _GameScreenState extends State<GameScreen> {
     if (_endDialogShown) return;
     _endDialogShown = true;
     _stopLoop();
+    HighScoreService.saveIfHigher(_score).then((_) {
+      if (mounted) setState(() => _highScore = HighScoreService.current);
+    });
     _ball.vx = 0;
     _ball.vy = 0;
     _gameOver = !won;
@@ -126,6 +134,7 @@ class _GameScreenState extends State<GameScreen> {
         context: context,
         won: won,
         score: _score,
+        highScore: _highScore,
         level: _currentLevel,
         onRestart: _restartGame,
         onGoToStart: won
@@ -261,6 +270,7 @@ class _GameScreenState extends State<GameScreen> {
             context: context,
             level: _currentLevel,
             score: _score,
+            highScore: _highScore,
             lives: _lives + 1,
             onNextLevel: _advanceLevel,
           );
@@ -291,6 +301,7 @@ class _GameScreenState extends State<GameScreen> {
                   score: _score,
                   lives: _lives,
                   level: _currentLevel,
+                  highScore: _highScore,
                   onRestart: _restartGame,
                 ),
                 const SizedBox(height: 14),

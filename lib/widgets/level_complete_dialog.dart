@@ -5,6 +5,7 @@ class LevelCompleteDialog {
     required BuildContext context,
     required int level,
     required int score,
+    int? highScore,
     required int lives,
     required VoidCallback onNextLevel,
   }) {
@@ -63,6 +64,19 @@ class LevelCompleteDialog {
                   fontWeight: FontWeight.w900,
                 ),
               ),
+              if (highScore != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'BEST $highScore',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white38,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

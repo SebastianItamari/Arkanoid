@@ -5,6 +5,7 @@ import '../models/ball.dart';
 import '../models/paddle.dart';
 import '../models/brick.dart';
 import '../models/game_state.dart';
+import '../models/floating_score.dart';
 import '../custom_painters/game_painter.dart';
 import '../utils/game_logic.dart';
 import '../widgets/game_hud.dart';
@@ -31,12 +32,11 @@ class _GameScreenState extends State<GameScreen> {
   Timer? _ticker;
   double _gameWidth = 0;
   double _gameHeight = 0;
+  List<FloatingScore> _floatingScores = [];
 
   @override
   void initState() {
     super.initState();
-
-    // Default sizes - positions will be adjusted once we know canvas size.
     _ball = Ball(x: 100, y: 100, radius: 8, vx: 0, vy: 0);
     _paddle = Paddle(x: 0, y: 0, width: 100, height: 12);
     _bricks = <Brick>[];
@@ -58,9 +58,8 @@ class _GameScreenState extends State<GameScreen> {
   void _startLoopIfNeeded() {
     if (_gameOver || _win) return;
     if (_ticker != null) return;
-    // Establece una velocidad inicial razonable si está en reposo.
     if (_ball.vx == 0 && _ball.vy == 0) {
-      _ball.vx = 3.4; // pixels per tick (~150 px/s at 60fps)
+      _ball.vx = 3.4;
       _ball.vy = -4.6;
     }
     _ticker = Timer.periodic(const Duration(milliseconds: 16), (_) => update());
@@ -78,6 +77,7 @@ class _GameScreenState extends State<GameScreen> {
       bricks: _bricks,
       score: _score,
       lives: _lives,
+      floatingScores: List.from(_floatingScores),
     );
   }
 
@@ -136,6 +136,7 @@ class _GameScreenState extends State<GameScreen> {
       _endDialogShown = false;
       _positionsInitialized = false;
       _bricks = <Brick>[];
+      _floatingScores = [];
       _ball.vx = 0;
       _ball.vy = 0;
       _syncGameState();
@@ -145,26 +146,18 @@ class _GameScreenState extends State<GameScreen> {
   void update() {
     if (!mounted) return;
     if (_gameOver || _win) return;
-    // Mueve la pelota
     double nextX = _ball.x + _ball.vx;
     double nextY = _ball.y + _ball.vy;
 
-    // Rebote en paredes laterales
-    if (nextX - _ball.radius <= 0) {
-      nextX = _ball.radius;
-      _ball.vx = -_ball.vx;
-    } else if (nextX + _ball.radius >= _gameWidth && _gameWidth > 0) {
-      nextX = _gameWidth - _ball.radius;
-      _ball.vx = -_ball.vx;
-    }
+    final wallAdjusted = checkWallCollisions(
+      ball: _ball,
+      nextX: nextX,
+      nextY: nextY,
+      gameWidth: _gameWidth,
+    );
+    nextX = wallAdjusted.dx;
+    nextY = wallAdjusted.dy;
 
-    // Rebote en techo
-    if (nextY - _ball.radius <= 0) {
-      nextY = _ball.radius;
-      _ball.vy = -_ball.vy;
-    }
-
-    // Collision con la pala
     checkPaddleCollision(
       ball: _ball,
       paddle: _paddle,
@@ -195,12 +188,18 @@ class _GameScreenState extends State<GameScreen> {
       nextX: nextX,
       nextY: nextY,
       positionsInitialized: _positionsInitialized,
-      onBrickDestroyed: (points) {
+      onBrickDestroyed: (points, x, y) {
         _score += points;
+        _floatingScores.add(FloatingScore(x: x, y: y));
       },
     );
     nextX = adjusted.dx;
     nextY = adjusted.dy;
+
+    for (final fs in _floatingScores) {
+      fs.progress += 0.016;
+    }
+    _floatingScores.removeWhere((fs) => fs.progress >= 1.0);
 
     setState(() {
       _ball.x = nextX;
@@ -262,9 +261,7 @@ class _GameScreenState extends State<GameScreen> {
                             final h = constraints.maxHeight;
 
                             if (!_positionsInitialized && w > 0 && h > 0) {
-                              // Place paddle centered horizontally and near bottom inside the game area.
                               final paddleX = (w - _paddle.width) / 2;
-                              // Respecta el SafeArea inferior usando MediaQuery.padding.bottom.
                               final bottomPadding = MediaQuery.of(
                                 context,
                               ).padding.bottom;
@@ -272,13 +269,11 @@ class _GameScreenState extends State<GameScreen> {
                                   h -
                                   _paddle.height -
                                   bottomPadding -
-                                  16; // 8 px extra margin
+                                  16;
 
-                              // Place ball above paddle by default
                               final ballX = w / 2;
-                              final ballY = paddleY - 24; // 24 px above paddle
+                              final ballY = paddleY - 24;
 
-                              // Evita llamar a setState durante build: programa la actualización
                               WidgetsBinding.instance.addPostFrameCallback((_) {
                                 if (!mounted) return;
                                 setState(() {
@@ -289,43 +284,22 @@ class _GameScreenState extends State<GameScreen> {
                                   _gameWidth = w;
                                   _gameHeight = h;
 
-                                  const double startX = 12.0;
-                                  const double paddingX = 6.0;
-                                  const double paddingY = 6.0;
-                                  const double targetBrickWidth = 44.0;
-                                  int cols =
-                                      ((w + paddingX) /
-                                              (targetBrickWidth + paddingX))
-                                          .floor();
-                                  if (cols < 1) cols = 1;
-                                  final availableForBricks =
-                                      w -
-                                      (startX * 2) -
-                                      (paddingX * (cols - 1));
-                                  double brickWidth = availableForBricks / cols;
-                                  if (!brickWidth.isFinite ||
-                                      brickWidth <= 8.0) {
-                                    brickWidth = targetBrickWidth.clamp(
-                                      8.0,
-                                      w - (startX * 2),
-                                    );
-                                  }
-                                  const int rows = 1;
-                                  final brickHeight = 18.0;
-                                  final topPadding = MediaQuery.of(
-                                    context,
-                                  ).padding.top;
-                                  final startYAdjusted = topPadding + 24.0;
+                                  final config = calculateLevelLayout(
+                                    gameWidth: w,
+                                    topPadding: MediaQuery.of(
+                                      context,
+                                    ).padding.top,
+                                  );
 
                                   _bricks = generateLevel(
-                                    rows: rows,
-                                    cols: cols,
-                                    brickWidth: brickWidth,
-                                    brickHeight: brickHeight,
-                                    startX: startX,
-                                    startY: startYAdjusted,
-                                    paddingX: paddingX,
-                                    paddingY: paddingY,
+                                    rows: 1,
+                                    cols: config.cols,
+                                    brickWidth: config.brickWidth,
+                                    brickHeight: config.brickHeight,
+                                    startX: config.startX,
+                                    startY: config.startY,
+                                    paddingX: config.paddingX,
+                                    paddingY: config.paddingY,
                                   );
 
                                   _gameState = GameState(
@@ -334,11 +308,11 @@ class _GameScreenState extends State<GameScreen> {
                                     bricks: _bricks,
                                     lives: _lives,
                                     score: _score,
+                                    floatingScores: List.from(_floatingScores),
                                   );
                                   _positionsInitialized = true;
                                 });
 
-                                // Inicia el loop de actualización si aún no está corriendo.
                                 _startLoopIfNeeded();
                               });
                             }
@@ -360,6 +334,7 @@ class _GameScreenState extends State<GameScreen> {
                                     bricks: _bricks,
                                     score: _score,
                                     lives: _lives,
+                                    floatingScores: List.from(_floatingScores),
                                   );
                                 });
                               },

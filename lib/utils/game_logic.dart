@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/ball.dart';
 import '../models/paddle.dart';
 import '../models/brick.dart';
+import '../models/level_config.dart';
 
 void checkPaddleCollision({
   required Ball ball,
@@ -21,13 +22,34 @@ void checkPaddleCollision({
       ballBottom >= paddle.y &&
       nextX >= paddle.x &&
       nextX <= (paddle.x + paddle.width)) {
-    // Colisión: posiciona la bola justo encima de la pala y cambia velocidad
     ball.y = paddle.y - ball.radius;
     ball.vy = -ball.vy;
-    final hitPos = (nextX - paddle.x) / paddle.width; // 0..1
-    final delta = (hitPos - 0.5) * 2.0; // -1..1
+    final hitPos = (nextX - paddle.x) / paddle.width;
+    final delta = (hitPos - 0.5) * 2.0;
     ball.vx += delta * 2.0;
   }
+}
+
+Offset checkWallCollisions({
+  required Ball ball,
+  required double nextX,
+  required double nextY,
+  required double gameWidth,
+}) {
+  if (nextX - ball.radius <= 0) {
+    nextX = ball.radius;
+    ball.vx = -ball.vx;
+  } else if (nextX + ball.radius >= gameWidth && gameWidth > 0) {
+    nextX = gameWidth - ball.radius;
+    ball.vx = -ball.vx;
+  }
+
+  if (nextY - ball.radius <= 0) {
+    nextY = ball.radius;
+    ball.vy = -ball.vy;
+  }
+
+  return Offset(nextX, nextY);
 }
 
 Offset checkBrickCollisions({
@@ -36,14 +58,13 @@ Offset checkBrickCollisions({
   required double nextX,
   required double nextY,
   required bool positionsInitialized,
-  void Function(int points)? onBrickDestroyed,
+  void Function(int points, double x, double y)? onBrickDestroyed,
 }) {
   if (!positionsInitialized) return Offset(nextX, nextY);
 
   for (final brick in List<Brick>.from(bricks)) {
     final rect = Rect.fromLTWH(brick.x, brick.y, brick.width, brick.height);
 
-    // Punto más cercano del rect al centro de la bola
     final nearestX = nextX.clamp(rect.left, rect.right);
     final nearestY = nextY.clamp(rect.top, rect.bottom);
 
@@ -54,9 +75,7 @@ Offset checkBrickCollisions({
     final radiusSq = ball.radius * ball.radius;
 
     if (distSq <= radiusSq) {
-      // Colisión detectada
       if (dx.abs() > dy.abs()) {
-        // Impacto principalmente en X
         ball.vx = -ball.vx;
         if (dx > 0) {
           nextX = rect.right + ball.radius;
@@ -64,7 +83,6 @@ Offset checkBrickCollisions({
           nextX = rect.left - ball.radius;
         }
       } else {
-        // Impacto principalmente en Y
         ball.vy = -ball.vy;
         if (dy > 0) {
           nextY = rect.bottom + ball.radius;
@@ -73,16 +91,16 @@ Offset checkBrickCollisions({
         }
       }
 
-      // Si es destruible, resta una vida y elimina si llega a 0
       if (!brick.indestructible) {
         brick.life -= 1;
         if (brick.life <= 0) {
+          final centerX = brick.x + brick.width / 2;
+          final centerY = brick.y + brick.height / 2;
           bricks.remove(brick);
-          onBrickDestroyed?.call(10);
+          onBrickDestroyed?.call(10, centerX, centerY);
         }
       }
 
-      // Solo procesar una colisión por tick
       break;
     }
   }
@@ -136,4 +154,34 @@ List<Brick> generateLevel({
   }
 
   return bricks;
+}
+
+LevelConfig calculateLevelLayout({
+  required double gameWidth,
+  required double topPadding,
+  double startX = 12.0,
+  double paddingX = 6.0,
+  double paddingY = 6.0,
+  double targetBrickWidth = 44.0,
+  int rows = 1,
+  double brickHeight = 18.0,
+}) {
+  int cols = ((gameWidth + paddingX) / (targetBrickWidth + paddingX)).floor();
+  if (cols < 1) cols = 1;
+  final availableForBricks = gameWidth - (startX * 2) - (paddingX * (cols - 1));
+  double brickWidth = availableForBricks / cols;
+  if (!brickWidth.isFinite || brickWidth <= 8.0) {
+    brickWidth = targetBrickWidth.clamp(8.0, gameWidth - (startX * 2));
+  }
+  final startY = topPadding + 24.0;
+
+  return LevelConfig(
+    cols: cols,
+    brickWidth: brickWidth,
+    brickHeight: brickHeight,
+    startX: startX,
+    startY: startY,
+    paddingX: paddingX,
+    paddingY: paddingY,
+  );
 }

@@ -8,7 +8,6 @@ class GamePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Ball
     final ball = gameState.ball;
 
     canvas.drawCircle(
@@ -17,7 +16,6 @@ class GamePainter extends CustomPainter {
       Paint()..color = Colors.white,
     );
 
-    // Paddle
     final paddle = gameState.paddle;
 
     final paddleRect = Rect.fromLTWH(
@@ -32,7 +30,6 @@ class GamePainter extends CustomPainter {
       Paint()..color = Colors.white,
     );
 
-    // Bricks
     for (final brick in gameState.bricks) {
       final rect = Rect.fromLTWH(brick.x, brick.y, brick.width, brick.height);
 
@@ -65,6 +62,25 @@ class GamePainter extends CustomPainter {
       }
 
       canvas.drawRRect(brickRRect, paint);
+    }
+
+    for (final fs in gameState.floatingScores) {
+      final opacity = 1.0 - fs.progress;
+      final offsetY = fs.progress * 30;
+
+      final tp = TextPainter(
+        text: TextSpan(
+          text: '+10',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: opacity),
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      tp.layout();
+      tp.paint(canvas, Offset(fs.x - tp.width / 2, fs.y - offsetY));
     }
   }
 

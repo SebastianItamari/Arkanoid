@@ -9,7 +9,7 @@ import '../models/level_data.dart';
 
 const levels = [
   LevelData(1, 100.0, 5.8, 0.05, 0.00),
-  LevelData(2, 96.0, 6.3, 0.25, 0.05),
-  LevelData(3, 90.0, 7.0, 0.40, 0.10),
-  LevelData(5, 80.0, 8.0, 0.60, 0.20),
+  LevelData(2, 90.0, 6.5, 0.25, 0.05),
+  LevelData(3, 80.0, 7.2, 0.45, 0.10),
+  LevelData(5, 70.0, 8.2, 0.65, 0.20),
 ];

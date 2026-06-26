@@ -1,9 +1,8 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
-import 'models/ball.dart';
-import 'models/paddle.dart';
-import 'models/brick.dart';
-
-/// Helpers de la lógica del juego: colisiones entre bola, pala y ladrillos.
+import '../models/ball.dart';
+import '../models/paddle.dart';
+import '../models/brick.dart';
 
 void checkPaddleCollision({
   required Ball ball,
@@ -89,4 +88,52 @@ Offset checkBrickCollisions({
   }
 
   return Offset(nextX, nextY);
+}
+
+List<Brick> generateLevel({
+  required int rows,
+  required int cols,
+  required double brickWidth,
+  required double brickHeight,
+  double startX = 0,
+  double startY = 0,
+  double paddingX = 4,
+  double paddingY = 4,
+}) {
+  final List<Brick> bricks = [];
+  final rnd = Random();
+
+  final bw = brickWidth.isFinite ? brickWidth.clamp(8.0, double.infinity) : 8.0;
+  final bh = brickHeight.isFinite
+      ? brickHeight.clamp(8.0, double.infinity)
+      : 8.0;
+
+  for (int r = 0; r < rows; r++) {
+    for (int c = 0; c < cols; c++) {
+      final x = startX + c * (bw + paddingX);
+      final y = startY + r * (bh + paddingY);
+
+      final double p = rnd.nextDouble();
+
+      if (p < 0.65) {
+        bricks.add(Brick(
+          x: x, y: y, width: bw, height: bh, life: 1, indestructible: false,
+        ));
+      } else if (p < 0.85) {
+        bricks.add(Brick(
+          x: x, y: y, width: bw, height: bh, life: 2, indestructible: false,
+        ));
+      } else if (p < 0.90) {
+        bricks.add(Brick(
+          x: x, y: y, width: bw, height: bh, life: 3, indestructible: false,
+        ));
+      } else {
+        bricks.add(Brick(
+          x: x, y: y, width: bw, height: bh, life: 0, indestructible: true,
+        ));
+      }
+    }
+  }
+
+  return bricks;
 }

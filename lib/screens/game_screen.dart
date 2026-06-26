@@ -5,8 +5,10 @@ import '../models/ball.dart';
 import '../models/paddle.dart';
 import '../models/brick.dart';
 import '../models/game_state.dart';
-import '../game_painter.dart';
-import '../game_logic.dart';
+import '../custom_painters/game_painter.dart';
+import '../utils/game_logic.dart';
+import '../widgets/game_hud.dart';
+import '../widgets/game_end_dialog.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
@@ -23,6 +25,9 @@ class _GameScreenState extends State<GameScreen> {
   int _score = 0;
   int _lives = 3;
   bool _positionsInitialized = false;
+  bool _gameOver = false;
+  bool _win = false;
+  bool _endDialogShown = false;
   Timer? _ticker;
   double _gameWidth = 0;
   double _gameHeight = 0;
@@ -51,6 +56,7 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _startLoopIfNeeded() {
+    if (_gameOver || _win) return;
     if (_ticker != null) return;
     // Establece una velocidad inicial razonable si está en reposo.
     if (_ball.vx == 0 && _ball.vy == 0) {
@@ -58,6 +64,26 @@ class _GameScreenState extends State<GameScreen> {
       _ball.vy = -4.6;
     }
     _ticker = Timer.periodic(const Duration(milliseconds: 16), (_) => update());
+  }
+
+  void _stopLoop() {
+    _ticker?.cancel();
+    _ticker = null;
+  }
+
+  void _syncGameState() {
+    _gameState = GameState(
+      ball: _ball,
+      paddle: _paddle,
+      bricks: _bricks,
+      score: _score,
+      lives: _lives,
+    );
+  }
+
+  bool get _allDestroyableBricksCleared {
+    return _positionsInitialized &&
+        !_bricks.any((brick) => !brick.indestructible);
   }
 
   void _resetBallAndPaddle() {
@@ -69,24 +95,56 @@ class _GameScreenState extends State<GameScreen> {
 
     Future.delayed(const Duration(milliseconds: 700), () {
       if (!mounted) return;
+      if (_gameOver || _win) return;
       if (_ball.vx == 0 && _ball.vy == 0) {
         setState(() {
           _ball.vx = 3.4;
           _ball.vy = -4.6;
-          _gameState = GameState(
-            ball: _ball,
-            paddle: _paddle,
-            bricks: _bricks,
-            score: _score,
-            lives: _lives,
-          );
+          _syncGameState();
         });
       }
     });
   }
 
+  void _finishGame({required bool won}) {
+    if (_endDialogShown) return;
+    _endDialogShown = true;
+    _stopLoop();
+    _ball.vx = 0;
+    _ball.vy = 0;
+    _gameOver = !won;
+    _win = won;
+    _syncGameState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      GameEndDialog.show(
+        context: context,
+        won: won,
+        score: _score,
+        onRestart: _restartGame,
+      );
+    });
+  }
+
+  void _restartGame() {
+    _stopLoop();
+    setState(() {
+      _score = 0;
+      _lives = 3;
+      _gameOver = false;
+      _win = false;
+      _endDialogShown = false;
+      _positionsInitialized = false;
+      _bricks = <Brick>[];
+      _ball.vx = 0;
+      _ball.vy = 0;
+      _syncGameState();
+    });
+  }
+
   void update() {
     if (!mounted) return;
+    if (_gameOver || _win) return;
     // Mueve la pelota
     double nextX = _ball.x + _ball.vx;
     double nextY = _ball.y + _ball.vy;
@@ -117,15 +175,16 @@ class _GameScreenState extends State<GameScreen> {
 
     if (_gameHeight > 0 && nextY - _ball.radius > _gameHeight) {
       _lives = _lives > 0 ? _lives - 1 : 0;
+      if (_lives == 0) {
+        setState(() {
+          _finishGame(won: false);
+        });
+        return;
+      }
+
       _resetBallAndPaddle();
       setState(() {
-        _gameState = GameState(
-          ball: _ball,
-          paddle: _paddle,
-          bricks: _bricks,
-          score: _score,
-          lives: _lives,
-        );
+        _syncGameState();
       });
       return;
     }
@@ -137,16 +196,7 @@ class _GameScreenState extends State<GameScreen> {
       nextY: nextY,
       positionsInitialized: _positionsInitialized,
       onBrickDestroyed: (points) {
-        setState(() {
-          _score += points;
-          _gameState = GameState(
-            ball: _ball,
-            paddle: _paddle,
-            bricks: _bricks,
-            score: _score,
-            lives: _lives,
-          );
-        });
+        _score += points;
       },
     );
     nextX = adjusted.dx;
@@ -155,58 +205,12 @@ class _GameScreenState extends State<GameScreen> {
     setState(() {
       _ball.x = nextX;
       _ball.y = nextY;
-      _gameState = GameState(
-        ball: _ball,
-        paddle: _paddle,
-        bricks: _bricks,
-        score: _score,
-        lives: _lives,
-      );
+      if (_allDestroyableBricksCleared) {
+        _finishGame(won: true);
+      } else {
+        _syncGameState();
+      }
     });
-  }
-
-  Widget _buildHud() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xCC0F172A),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.12)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          _buildHudItem('Score', _score.toString()),
-          _buildHudItem('Lives', _lives.toString()),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHudItem(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 11,
-            letterSpacing: 0.8,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
-    );
   }
 
   @override
@@ -225,7 +229,11 @@ class _GameScreenState extends State<GameScreen> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
             child: Column(
               children: [
-                _buildHud(),
+                GameHud(
+                  score: _score,
+                  lives: _lives,
+                  onRestart: _restartGame,
+                ),
                 const SizedBox(height: 14),
                 Expanded(
                   child: Center(
@@ -302,7 +310,7 @@ class _GameScreenState extends State<GameScreen> {
                                       w - (startX * 2),
                                     );
                                   }
-                                  const int rows = 8;
+                                  const int rows = 1;
                                   final brickHeight = 18.0;
                                   final topPadding = MediaQuery.of(
                                     context,

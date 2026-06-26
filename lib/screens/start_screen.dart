@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/game_preview_widget.dart';
 
 class StartScreen extends StatelessWidget {
   const StartScreen({super.key});
@@ -66,16 +67,19 @@ class StartScreen extends StatelessWidget {
                           fontSize: 15,
                         ),
                       ),
-
-                      const SizedBox(height: 48),
-
-                      /*Icon(
-                        Icons.sports_esports_rounded,
-                        size: 96,
-                        color: Colors.white.withOpacity(0.9),
+                      const SizedBox(height: 8),
+                      Container(
+                        height: 220,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFF5B8CFF).withValues(alpha: 0.25),
+                          ),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: const GamePreviewWidget(),
                       ),
-
-                      const SizedBox(height: 24),*/
+                      const SizedBox(height: 8),
                       const Spacer(),
 
                       SizedBox(

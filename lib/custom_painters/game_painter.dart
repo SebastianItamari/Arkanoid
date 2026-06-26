@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'models/game_state.dart';
+import '../models/game_state.dart';
 
 class GamePainter extends CustomPainter {
   final GameState gameState;

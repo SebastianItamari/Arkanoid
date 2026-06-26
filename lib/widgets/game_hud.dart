@@ -4,12 +4,14 @@ import 'game_hud_item.dart';
 class GameHud extends StatelessWidget {
   final int score;
   final int lives;
+  final int level;
   final VoidCallback onRestart;
 
   const GameHud({
     super.key,
     required this.score,
     required this.lives,
+    required this.level,
     required this.onRestart,
   });
 
@@ -37,6 +39,12 @@ class GameHud extends StatelessWidget {
             iconColor: const Color(0xFFFF4D6D),
             label: 'Lives',
             value: lives.toString(),
+          ),
+          GameHudItem(
+            icon: Icons.flag_rounded,
+            iconColor: const Color(0xFF5B8CFF),
+            label: 'Level',
+            value: level.toString(),
           ),
           FilledButton.icon(
             onPressed: onRestart,

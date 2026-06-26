@@ -6,10 +6,13 @@ import '../models/paddle.dart';
 import '../models/brick.dart';
 import '../models/game_state.dart';
 import '../models/floating_score.dart';
+import '../models/level_data.dart';
+import '../constants/levels.dart';
 import '../custom_painters/game_painter.dart';
 import '../utils/game_logic.dart';
 import '../widgets/game_hud.dart';
 import '../widgets/game_end_dialog.dart';
+import '../widgets/level_complete_dialog.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
@@ -33,6 +36,8 @@ class _GameScreenState extends State<GameScreen> {
   double _gameWidth = 0;
   double _gameHeight = 0;
   List<FloatingScore> _floatingScores = [];
+  bool _paused = false;
+  int _currentLevel = 1;
 
   @override
   void initState() {
@@ -56,7 +61,7 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _startLoopIfNeeded() {
-    if (_gameOver || _win) return;
+    if (_gameOver || _win || _paused) return;
     if (_ticker != null) return;
     if (_ball.vx == 0 && _ball.vy == 0) {
       _ball.vx = 3.4;
@@ -95,7 +100,7 @@ class _GameScreenState extends State<GameScreen> {
 
     Future.delayed(const Duration(milliseconds: 700), () {
       if (!mounted) return;
-      if (_gameOver || _win) return;
+      if (_gameOver || _win || _paused) return;
       if (_ball.vx == 0 && _ball.vy == 0) {
         setState(() {
           _ball.vx = 3.4;
@@ -121,7 +126,13 @@ class _GameScreenState extends State<GameScreen> {
         context: context,
         won: won,
         score: _score,
+        level: _currentLevel,
         onRestart: _restartGame,
+        onGoToStart: won
+            ? () => Navigator.of(
+                context,
+              ).pushNamedAndRemoveUntil('/', (_) => false)
+            : null,
       );
     });
   }
@@ -131,6 +142,8 @@ class _GameScreenState extends State<GameScreen> {
     setState(() {
       _score = 0;
       _lives = 3;
+      _currentLevel = 1;
+      _paddle.width = 100;
       _gameOver = false;
       _win = false;
       _endDialogShown = false;
@@ -143,9 +156,36 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
+  void _togglePause() {
+    if (_gameOver || _win || !_positionsInitialized) return;
+    setState(() {
+      _paused = !_paused;
+      if (_paused) {
+        _stopLoop();
+      } else {
+        _startLoopIfNeeded();
+      }
+    });
+  }
+
+  void _advanceLevel() {
+    final params = _getLevelParams(++_currentLevel);
+    _lives++;
+    _paddle.width = params.paddleWidth;
+    _positionsInitialized = false;
+    _ball.vx = 0;
+    _ball.vy = 0;
+    _floatingScores = [];
+    setState(() {
+      _syncGameState();
+    });
+  }
+
+  LevelData _getLevelParams(int level) => levels[level - 1];
+
   void update() {
     if (!mounted) return;
-    if (_gameOver || _win) return;
+    if (_gameOver || _win || _paused) return;
     double nextX = _ball.x + _ball.vx;
     double nextY = _ball.y + _ball.vy;
 
@@ -164,6 +204,7 @@ class _GameScreenState extends State<GameScreen> {
       nextX: nextX,
       nextY: nextY,
       positionsInitialized: _positionsInitialized,
+      targetSpeed: _getLevelParams(_currentLevel).targetSpeed,
     );
 
     if (_gameHeight > 0 && nextY - _ball.radius > _gameHeight) {
@@ -201,15 +242,33 @@ class _GameScreenState extends State<GameScreen> {
     }
     _floatingScores.removeWhere((fs) => fs.progress >= 1.0);
 
+    final bool allCleared = _allDestroyableBricksCleared;
+
     setState(() {
       _ball.x = nextX;
       _ball.y = nextY;
-      if (_allDestroyableBricksCleared) {
-        _finishGame(won: true);
-      } else {
+      if (!allCleared) {
         _syncGameState();
       }
     });
+
+    if (allCleared) {
+      _stopLoop();
+      if (_currentLevel < levels.length) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          LevelCompleteDialog.show(
+            context: context,
+            level: _currentLevel,
+            score: _score,
+            lives: _lives + 1,
+            onNextLevel: _advanceLevel,
+          );
+        });
+      } else {
+        _finishGame(won: true);
+      }
+    }
   }
 
   @override
@@ -231,6 +290,7 @@ class _GameScreenState extends State<GameScreen> {
                 GameHud(
                   score: _score,
                   lives: _lives,
+                  level: _currentLevel,
                   onRestart: _restartGame,
                 ),
                 const SizedBox(height: 14),
@@ -238,113 +298,169 @@ class _GameScreenState extends State<GameScreen> {
                   child: Center(
                     child: AspectRatio(
                       aspectRatio: 9 / 16,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [Color(0xFF131B33), Color(0xFF0B1020)],
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x225B8CFF),
-                              blurRadius: 30,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            final w = constraints.maxWidth;
-                            final h = constraints.maxHeight;
-
-                            if (!_positionsInitialized && w > 0 && h > 0) {
-                              final paddleX = (w - _paddle.width) / 2;
-                              final bottomPadding = MediaQuery.of(
-                                context,
-                              ).padding.bottom;
-                              final paddleY =
-                                  h -
-                                  _paddle.height -
-                                  bottomPadding -
-                                  16;
-
-                              final ballX = w / 2;
-                              final ballY = paddleY - 24;
-
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                if (!mounted) return;
-                                setState(() {
-                                  _paddle.x = paddleX;
-                                  _paddle.y = paddleY;
-                                  _ball.x = ballX;
-                                  _ball.y = ballY;
-                                  _gameWidth = w;
-                                  _gameHeight = h;
-
-                                  final config = calculateLevelLayout(
-                                    gameWidth: w,
-                                    topPadding: MediaQuery.of(
-                                      context,
-                                    ).padding.top,
-                                  );
-
-                                  _bricks = generateLevel(
-                                    rows: 1,
-                                    cols: config.cols,
-                                    brickWidth: config.brickWidth,
-                                    brickHeight: config.brickHeight,
-                                    startX: config.startX,
-                                    startY: config.startY,
-                                    paddingX: config.paddingX,
-                                    paddingY: config.paddingY,
-                                  );
-
-                                  _gameState = GameState(
-                                    ball: _ball,
-                                    paddle: _paddle,
-                                    bricks: _bricks,
-                                    lives: _lives,
-                                    score: _score,
-                                    floatingScores: List.from(_floatingScores),
-                                  );
-                                  _positionsInitialized = true;
-                                });
-
-                                _startLoopIfNeeded();
-                              });
-                            }
-
-                            return GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onHorizontalDragUpdate: (details) {
-                                final dx = details.delta.dx;
-                                double maxX = w - _paddle.width;
-                                if (maxX < 0) maxX = 0;
-                                double newX = _paddle.x + dx;
-                                if (newX < 0) newX = 0;
-                                if (newX > maxX) newX = maxX;
-                                setState(() {
-                                  _paddle.x = newX;
-                                  _gameState = GameState(
-                                    ball: _ball,
-                                    paddle: _paddle,
-                                    bricks: _bricks,
-                                    score: _score,
-                                    lives: _lives,
-                                    floatingScores: List.from(_floatingScores),
-                                  );
-                                });
-                              },
-                              child: CustomPaint(
-                                painter: GamePainter(_gameState),
-                                child: const SizedBox.expand(),
+                      child: Stack(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [Color(0xFF131B33), Color(0xFF0B1020)],
                               ),
-                            );
-                          },
-                        ),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x225B8CFF),
+                                  blurRadius: 30,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final w = constraints.maxWidth;
+                                final h = constraints.maxHeight;
+
+                                if (!_positionsInitialized && w > 0 && h > 0) {
+                                  final paddleX = (w - _paddle.width) / 2;
+                                  final bottomPadding = MediaQuery.of(
+                                    context,
+                                  ).padding.bottom;
+                                  final paddleY =
+                                      h - _paddle.height - bottomPadding - 16;
+
+                                  final ballX = w / 2;
+                                  final ballY = paddleY - 24;
+
+                                  WidgetsBinding.instance.addPostFrameCallback((
+                                    _,
+                                  ) {
+                                    if (!mounted) return;
+                                    setState(() {
+                                      _paddle.x = paddleX;
+                                      _paddle.y = paddleY;
+                                      _ball.x = ballX;
+                                      _ball.y = ballY;
+                                      _gameWidth = w;
+                                      _gameHeight = h;
+
+                                      final config = calculateLevelLayout(
+                                        gameWidth: w,
+                                        topPadding: MediaQuery.of(
+                                          context,
+                                        ).padding.top,
+                                      );
+
+                                      final levelData = _getLevelParams(
+                                        _currentLevel,
+                                      );
+                                      _paddle.width = levelData.paddleWidth;
+                                      _bricks = generateLevel(
+                                        rows: levelData.rows,
+                                        cols: config.cols,
+                                        brickWidth: config.brickWidth,
+                                        brickHeight: config.brickHeight,
+                                        startX: config.startX,
+                                        startY: config.startY,
+                                        paddingX: config.paddingX,
+                                        paddingY: config.paddingY,
+                                        hitChance: levelData.hitChance,
+                                        indestructibleChance:
+                                            levelData.indestructibleChance,
+                                      );
+
+                                      _gameState = GameState(
+                                        ball: _ball,
+                                        paddle: _paddle,
+                                        bricks: _bricks,
+                                        lives: _lives,
+                                        score: _score,
+                                        floatingScores: List.from(
+                                          _floatingScores,
+                                        ),
+                                      );
+                                      _positionsInitialized = true;
+                                    });
+
+                                    _startLoopIfNeeded();
+                                  });
+                                }
+
+                                return GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: _togglePause,
+                                  onHorizontalDragUpdate: (details) {
+                                    final dx = details.delta.dx;
+                                    double maxX = w - _paddle.width;
+                                    if (maxX < 0) maxX = 0;
+                                    double newX = _paddle.x + dx;
+                                    if (newX < 0) newX = 0;
+                                    if (newX > maxX) newX = maxX;
+                                    setState(() {
+                                      _paddle.x = newX;
+                                      _gameState = GameState(
+                                        ball: _ball,
+                                        paddle: _paddle,
+                                        bricks: _bricks,
+                                        score: _score,
+                                        lives: _lives,
+                                        floatingScores: List.from(
+                                          _floatingScores,
+                                        ),
+                                      );
+                                    });
+                                  },
+                                  child: CustomPaint(
+                                    painter: GamePainter(_gameState),
+                                    child: const SizedBox.expand(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          if (!_paused)
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: GestureDetector(
+                                onTap: _togglePause,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.4),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  padding: const EdgeInsets.all(8),
+                                  child: const Icon(
+                                    Icons.pause_rounded,
+                                    color: Colors.white70,
+                                    size: 28,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          if (_paused)
+                            GestureDetector(
+                              onTap: _togglePause,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.6),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Center(
+                                  child: Text(
+                                    'PAUSED',
+                                    style: TextStyle(
+                                      color: Color(0xFF5B8CFF),
+                                      fontSize: 36,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 3,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),

@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 
-class GameEndDialog {
+class LevelCompleteDialog {
   static Future<void> show({
     required BuildContext context,
-    required bool won,
+    required int level,
     required int score,
-    int? level,
-    required VoidCallback onRestart,
-    VoidCallback? onGoToStart,
+    required int lives,
+    required VoidCallback onNextLevel,
   }) {
     return showDialog<void>(
       context: context,
@@ -19,9 +18,7 @@ class GameEndDialog {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
             side: BorderSide(
-              color: won
-                  ? const Color(0xFF5B8CFF).withValues(alpha: 0.4)
-                  : const Color(0xFFFF4D6D).withValues(alpha: 0.4),
+              color: const Color(0xFF5B8CFF).withValues(alpha: 0.4),
               width: 1.5,
             ),
           ),
@@ -29,25 +26,17 @@ class GameEndDialog {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                won
-                    ? Icons.emoji_events_rounded
-                    : Icons.sentiment_very_dissatisfied_rounded,
+              const Icon(
+                Icons.check_circle_rounded,
                 size: 64,
-                color: won
-                    ? const Color(0xFF5B8CFF)
-                    : const Color(0xFFFF4D6D),
+                color: Color(0xFF5B8CFF),
               ),
               const SizedBox(height: 16),
               Text(
-                won
-                    ? 'YOU WIN'
-                    : level != null
-                        ? 'LEVEL $level - GAME OVER'
-                        : 'GAME OVER',
+                'LEVEL $level COMPLETE!',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: won ? const Color(0xFF5B8CFF) : Colors.white,
+                style: const TextStyle(
+                  color: Color(0xFF5B8CFF),
                   fontSize: 28,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 1.5,
@@ -55,7 +44,7 @@ class GameEndDialog {
               ),
               const SizedBox(height: 24),
               const Text(
-                'FINAL SCORE',
+                'SCORE',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white70,
@@ -74,40 +63,44 @@ class GameEndDialog {
                   fontWeight: FontWeight.w900,
                 ),
               ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF4D6D).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: const Color(0xFFFF4D6D).withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.favorite_rounded, size: 16, color: Color(0xFFFF4D6D)),
+                    const SizedBox(width: 6),
+                    Text(
+                      '+1 VIDA ($lives)',
+                      style: const TextStyle(
+                        color: Color(0xFFFF4D6D),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
                   onPressed: () {
                     Navigator.of(dialogContext).pop();
-                    onRestart();
+                    onNextLevel();
                   },
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('REINICIAR'),
+                  icon: const Icon(Icons.arrow_forward_rounded),
+                  label: const Text('SIGUIENTE NIVEL'),
                 ),
               ),
-              if (onGoToStart != null) ...[
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.of(dialogContext).pop();
-                      onGoToStart();
-                    },
-                    icon: const Icon(Icons.home_rounded),
-                    label: const Text('VOLVER AL INICIO'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white70,
-                      side: const BorderSide(color: Colors.white24),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
             ],
           ),
         );

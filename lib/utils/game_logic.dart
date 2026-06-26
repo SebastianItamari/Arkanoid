@@ -11,6 +11,7 @@ void checkPaddleCollision({
   required double nextX,
   required double nextY,
   required bool positionsInitialized,
+  double targetSpeed = 5.8,
 }) {
   if (!positionsInitialized) return;
 
@@ -27,6 +28,9 @@ void checkPaddleCollision({
     final hitPos = (nextX - paddle.x) / paddle.width;
     final delta = (hitPos - 0.5) * 2.0;
     ball.vx += delta * 2.0;
+    final speed = sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+    ball.vx = ball.vx / speed * targetSpeed;
+    ball.vy = ball.vy / speed * targetSpeed;
   }
 }
 
@@ -75,19 +79,25 @@ Offset checkBrickCollisions({
     final radiusSq = ball.radius * ball.radius;
 
     if (distSq <= radiusSq) {
-      if (dx.abs() > dy.abs()) {
+      final useX = dx.abs() > dy.abs() ||
+          (dx == 0 && dy == 0 && ball.vx.abs() > ball.vy.abs());
+      if (useX) {
         ball.vx = -ball.vx;
         if (dx > 0) {
           nextX = rect.right + ball.radius;
-        } else {
+        } else if (dx < 0) {
           nextX = rect.left - ball.radius;
+        } else {
+          nextX = ball.vx > 0 ? rect.right + ball.radius : rect.left - ball.radius;
         }
       } else {
         ball.vy = -ball.vy;
         if (dy > 0) {
           nextY = rect.bottom + ball.radius;
-        } else {
+        } else if (dy < 0) {
           nextY = rect.top - ball.radius;
+        } else {
+          nextY = ball.vy > 0 ? rect.bottom + ball.radius : rect.top - ball.radius;
         }
       }
 
@@ -100,8 +110,6 @@ Offset checkBrickCollisions({
           onBrickDestroyed?.call(10, centerX, centerY);
         }
       }
-
-      break;
     }
   }
 
@@ -117,6 +125,8 @@ List<Brick> generateLevel({
   double startY = 0,
   double paddingX = 4,
   double paddingY = 4,
+  double hitChance = 0.2,
+  double indestructibleChance = 0.0,
 }) {
   final List<Brick> bricks = [];
   final rnd = Random();
@@ -132,18 +142,16 @@ List<Brick> generateLevel({
       final y = startY + r * (bh + paddingY);
 
       final double p = rnd.nextDouble();
+      final double oneHitThreshold = 1.0 - hitChance - indestructibleChance;
 
-      if (p < 0.65) {
+      if (p < oneHitThreshold) {
         bricks.add(Brick(
           x: x, y: y, width: bw, height: bh, life: 1, indestructible: false,
         ));
-      } else if (p < 0.85) {
+      } else if (p < 1.0 - indestructibleChance) {
+        final int life = rnd.nextDouble() < 0.67 ? 2 : 3;
         bricks.add(Brick(
-          x: x, y: y, width: bw, height: bh, life: 2, indestructible: false,
-        ));
-      } else if (p < 0.90) {
-        bricks.add(Brick(
-          x: x, y: y, width: bw, height: bh, life: 3, indestructible: false,
+          x: x, y: y, width: bw, height: bh, life: life, indestructible: false,
         ));
       } else {
         bricks.add(Brick(
